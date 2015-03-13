@@ -1,0 +1,10 @@
+[Unit]
+Description=A web application example
+Requires=docker.service
+Requires=redis.2.8.service
+After=docker.service
+After=redis.2.8.service
+
+[Service]
+ExecStart=/usr/bin/docker run --rm --name webapp -p 3000:3000 -v /code/webapp:/app nicoolas25/webapp
+ExecStop=/usr/bin/docker stop webapp
