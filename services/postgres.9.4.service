@@ -4,7 +4,8 @@ After=docker.service
 Requires=docker.service
 
 [Service]
-ExecStart=/usr/bin/docker run --rm --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:9.4
+ExecStartPre=-/usr/bin/docker rm postgres
+ExecStart=/usr/bin/docker run --rm --name postgres -p 5432:5432 -E SERVICE_ID=%H -e POSTGRES_PASSWORD=postgres postgres:9.4
 ExecStop=/usr/bin/docker stop postgres
 
 [X-Fleet]

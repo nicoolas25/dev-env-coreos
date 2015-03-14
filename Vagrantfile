@@ -20,12 +20,6 @@ $vm_cpus = 1
 $shared_folders = {}
 $forwarded_ports = {}
 
-# Attempt to apply the deprecated environment variable NUM_INSTANCES to
-# $num_instances while allowing config.rb to override it
-if ENV["NUM_INSTANCES"].to_i > 0 && ENV["NUM_INSTANCES"]
-  $num_instances = ENV["NUM_INSTANCES"].to_i
-end
-
 if File.exist?(CONFIG)
   require CONFIG
 end
