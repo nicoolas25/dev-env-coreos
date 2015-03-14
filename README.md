@@ -72,19 +72,19 @@ To start services or commands inside the cluster, you need to _load_ the service
 definition (also called units):
 
     $ fleetctl load services/redis.2.8.service
-    > Unit redis.2.8.service loaded on 5e25a00c.../172.17.8.101
+    > Unit redis.2.8.service loaded on 353a1ca7.../172.17.8.102
 
 Now, fleet knows about your redis service. You can list the services available:
 
     $ fleetctl list-units
     > UNIT                    MACHINE                         ACTIVE          SUB
-      redis.2.8.service       5e25a00c.../172.17.8.101        inactive        dead
-      registrator.service     5e25a00c.../172.17.8.101        active          running
-      registrator.service     771a3ef9.../172.17.8.102        active          running
-      registrator.service     e05179a7.../172.17.8.103        active          running
-      skydns.service          5e25a00c.../172.17.8.101        active          running
-      skydns.service          771a3ef9.../172.17.8.102        active          running
-      skydns.service          e05179a7.../172.17.8.103        active          running
+      redis.2.8.service       353a1ca7.../172.17.8.102        inactive       dead
+      registrator.service     353a1ca7.../172.17.8.102        active      running
+      registrator.service     70da50d0.../172.17.8.103        active      running
+      registrator.service     a355495f.../172.17.8.101        active      running
+      skydns.service          353a1ca7.../172.17.8.102        active      running
+      skydns.service          70da50d0.../172.17.8.103        active      running
+      skydns.service          a355495f.../172.17.8.101        active      running
 
 There is services that are already running on each machine: `skydns` and
 `registrator`. We'll talk about them later.
