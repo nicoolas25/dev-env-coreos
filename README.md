@@ -129,9 +129,6 @@ this command:
 
 ### Accessing your services using Skydns
 
-> Until now we were using only the host to run programs in the guest CoreOS
-> system. From now we'll use both host (`$`) and the guest (`~`) commands.
-
 As we've seen before, there is `skydns` and `registrator` that are already
 configured and running on each virtual machine. SkyDNS provides a DNS server
 based on `etcd` and Registrator register an entry in SkyDNS everytime a docker
@@ -193,6 +190,9 @@ The following instruction implies that your application already have a
 Dockerfile based on a publicly available image.
 
 ### Build an image that can run your app
+
+> Until now we were using only the host to run programs in the guest CoreOS
+> system. From now we'll use both host (`$`) and the guest (`~`) commands.
 
 We'll [build our Docker image][docker-build] from CoreOS since it already have
 docker installed:
