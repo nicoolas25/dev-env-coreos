@@ -1,0 +1,90 @@
+#cloud-config
+
+---
+coreos:
+  etcd:
+    addr: $public_ipv4:4001
+    peer-addr: $public_ipv4:7001
+    discovery: https://discovery.etcd.io/f7b8649a93d48bafc730e0c2b8f32e5f
+  fleet:
+    public-ip: $public_ipv4
+    metadata:
+  update:
+    reboot-strategy: off
+  units:
+    - name: etcd.service
+      command: start
+    - name: fleet.service
+      command: start
+    - name: docker-tcp.socket
+      command: start
+      enable: true
+      content: |
+        [Unit]
+        Description=Docker Socket for the API
+
+        [Socket]
+        ListenStream=2375
+        Service=docker.service
+        BindIPv6Only=both
+
+        [Install]
+        WantedBy=sockets.target
+    - name: docker.service
+      command: restart
+      content: |
+        .include /usr/lib/systemd/system/docker.service
+        [Service]
+        Environment="DOCKER_OPTS=--dns=10.1.42.1"
+    - name: skydns.service
+      enable: false
+      content: |
+        [Unit]
+        Description=Skydns
+        Requires=docker.service
+        Requires=etcd.service
+        After=docker.service
+        After=etcd.service
+
+        [Service]
+        ExecStartPre=-/usr/bin/etcdctl set /skydns/config '{"dns_addr":"0.0.0.0:53","nameservers":["8.8.8.8:53","8.8.4.4:53"],"domain":"webapp.dev"}'
+        ExecStartPre=-/usr/bin/docker rm skydns
+        ExecStart=/usr/bin/docker run --rm -p 53:53/udp --name skydns -e ETCD_MACHINES=http://10.1.42.1:4001 skynetservices/skydns
+        ExecStop=/usr/bin/docker stop skydns
+        Restart=always
+
+        [X-Fleet]
+        Global=true
+    - name: registrator.service
+      enable: false
+      content: |
+        [Unit]
+        Description=Registrator
+        Requires=docker.service
+        Requires=etcd.service
+        After=docker.service
+        After=etcd.service
+
+        [Service]
+        EnvironmentFile=/etc/environment
+        ExecStartPre=-/usr/bin/docker rm registrator
+        ExecStart=/usr/bin/docker run --rm -v /var/run/docker.sock:/tmp/docker.sock --name registrator -h $COREOS_PRIVATE_IPV4 gliderlabs/registrator skydns2://10.1.42.1:4001/webapp.dev
+        ExecStop=/usr/bin/docker stop registrator
+        Restart=always
+
+        [X-Fleet]
+        Global=true
+    - name: skydns_and_registrator_via_fleet.service
+      command: start
+      content: |
+        [Unit]
+        Description=Load and start fleet services
+        Requires=fleet.service
+        Requires=etcd.service
+        After=fleet.service
+        After=etcd.service
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/usr/bin/fleetctl start /etc/systemd/system/skydns.service
+        ExecStart=/usr/bin/fleetctl start /etc/systemd/system/registrator.service
