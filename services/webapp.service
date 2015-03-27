@@ -1,9 +1,0 @@
-[Unit]
-Description=A web application example
-Requires=docker.service
-After=docker.service
-
-[Service]
-ExecStartPre=-/usr/bin/docker rm webapp
-ExecStart=/usr/bin/docker run --rm --name webapp -p 3000:3000 -v /code/webapp:/app -e SERVICE_ID=%H nicoolas25/webapp
-ExecStop=/usr/bin/docker stop webapp

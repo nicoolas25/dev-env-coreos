@@ -1,0 +1,12 @@
+[Unit]
+Description=A web application example
+Requires=docker.service
+After=docker.service
+
+[Service]
+ExecStartPre=-/usr/bin/docker rm webapp
+ExecStart=/usr/bin/docker run --rm --name webapp -p 3000:3000 -v /code/webapp:/app -e SERVICE_NAME=app -e SERVICE_ID=%i quay.io/nicoolas25/rack-webapp:latest
+ExecStop=/usr/bin/docker stop webapp
+
+[X-Fleet]
+X-Conflicts=webapp@*.service

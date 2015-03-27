@@ -1,0 +1,12 @@
+[Unit]
+Description=A Postgres 9.4 server
+After=docker.service
+Requires=docker.service
+
+[Service]
+ExecStartPre=-/usr/bin/docker rm postgres
+ExecStart=/usr/bin/docker run --rm --name postgres -p 5432:5432 -E SERVICE_ID=postgres-%i -e POSTGRES_PASSWORD=postgres postgres:9.4
+ExecStop=/usr/bin/docker stop postgres
+
+[X-Fleet]
+X-Conflicts=postgres@*.service

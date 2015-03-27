@@ -62,70 +62,74 @@ the services that are running inside your VM:
 
     $ fleetctl list-machines
     > MACHINE         IP              METADATA
-      353a1ca7...     172.17.8.102    -
-      70da50d0...     172.17.8.103    -
-      a355495f...     172.17.8.101    -
+      390787da...     172.17.8.103    -
+      4509883a...     172.17.8.101    -
+      ea72f90e...     172.17.8.102    -
 
 ### Starting containers with fleetctl
 
-To start services or commands inside the cluster, you need to _load_ the service
-definition (also called units):
+To start services or commands inside the cluster, you need to _submit_
+an _instance_ of the service definition (also called units):
 
-    $ fleetctl load services/redis.2.8.service
-    > Unit redis.2.8.service loaded on 353a1ca7.../172.17.8.102
+    $ fleetctl submit services/redis@1.service
 
-Now, fleet knows about your redis service. You can list the services available:
+Here the instance name is `1`. Once the service file is submited, it is visible
+from your fleet:
+
+    $ fleetctl list-unit-files
+    > UNIT                    HASH    DSTATE          STATE           TARGET
+      redis@1.service         98f768d inactive        inactive        -
+      registrator.service     14bd412 launched        -               -
+      skydns.service          f7b1505 loaded          -               -
+
+Now, fleet knows about your redis service. It is possible to start this _instance_
+of our redis service:
+
+    $ fleetctl start redis@1.service
+    > Unit redis@1.service launched on 390787da.../172.17.8.103
+
+Now, you can list the units and see the service:
 
     $ fleetctl list-units
-    > UNIT                    MACHINE                         ACTIVE          SUB
-      redis.2.8.service       353a1ca7.../172.17.8.102        inactive       dead
-      registrator.service     353a1ca7.../172.17.8.102        active      running
-      registrator.service     70da50d0.../172.17.8.103        active      running
-      registrator.service     a355495f.../172.17.8.101        active      running
-      skydns.service          353a1ca7.../172.17.8.102        active      running
-      skydns.service          70da50d0.../172.17.8.103        active      running
-      skydns.service          a355495f.../172.17.8.101        active      running
+    > UNIT                    MACHINE                         ACTIVE  SUB
+      redis@1.service         390787da.../172.17.8.103        active  running
+      registrator.service     390787da.../172.17.8.103        active  running
+      registrator.service     4509883a.../172.17.8.101        active  running
+      registrator.service     ea72f90e.../172.17.8.102        active  running
+      skydns.service          390787da.../172.17.8.103        active  running
+      skydns.service          4509883a.../172.17.8.101        active  running
+      skydns.service          ea72f90e.../172.17.8.102        active  running
 
 There is services that are already running on each machine: `skydns` and
 `registrator`. We'll talk about them later.
 
-Fleet can tell you the status of a service too:
+Fleet can tell you the status of a service, and stop them too:
 
-    $ fleetctl status redis.2.8.service
-    > ● redis.4.8.service - Redis 2.8 server
-         Loaded: loaded (/run/fleet/units/redis.2.8.service; linked-runtime; vendor preset: disabled)
-         Active: inactive (dead)
+    $ fleetctl status redis@1.service
+    > ● redis@1.service - A Redis 2.8 server
+         Loaded: loaded (/run/fleet/units/redis@1.service; linked-runtime; vendor preset: disabled)
+            Active: active (running) since Fri 2015-03-27 15:03:54 UTC; 1min 9s ago
+              Process: 1582 ExecStartPre=/usr/bin/docker rm redis (code=exited, status=1/FAILURE)
+       Main PID: 1589 (docker)
+         CGroup: /system.slice/system-redis.slice/redis@1.service
+                    └─1589 /usr/bin/docker run --rm --name redis -p 6379:6379 -e SERVICE_ID=redis-1 redis:2.8
 
-Of course, fleet lets you start your service (this is the whole point here):
-
-    $ fleetctl start redis.2.8.service
-    > Unit redis.2.8.service launched on 353a1ca7.../172.17.8.102
-
-    $ fleetctl status redis.2.8.service
-    > ● redis.2.8.service - Redis 2.8 server
-         Loaded: loaded (/run/fleet/units/redis.2.8.service; linked-runtime; vendor preset: disabled)
-         Active: active (running) since Sat 2015-03-14 12:27:36 UTC; 8s ago
-        Process: 1770 ExecStartPre=/usr/bin/docker rm redis (code=exited, status=1/FAILURE)
-       Main PID: 1777 (docker)
-         CGroup: /system.slice/redis.2.8.service
-                 └─1777 /usr/bin/docker run --rm --name redis -p 6379:6379 -e SERVICE_ID=core-02 redis:2.8
-
-Since it is the first time we're running `redis:2.8`, docker will start by
-pulling the image from the repository. Your redis service will be available
-after that download. Try using `fleetctl journal -f redis.2.8.service` see
-when your server is ready.
+Since it is the first time we're running Redis, docker will start by pulling
+the image from the repository. Your redis service will be available after that
+download. Try using `fleetctl journal -f redis@1.service` see when your server
+is ready.
 
 ### Accessing your services directly
 
 You can always access services using the virtual machine IP:
 
-    $ redis-cli -h 172.17.8.102
+    $ redis-cli -h 172.17.8.103
 
 To get the address of the machine hosting the redis.2.8.service you can use
 this command:
 
     $ fleetctl list-units | grep redis.2.8.service | awk -F'[[:space:]/]' '{ print $3 }'
-    > 172.17.8.102
+    > 172.17.8.103
 
 ### Accessing your services using Skydns
 
@@ -138,15 +142,9 @@ Any machine in the cluster is hosting a SkyDNS conainer. Any machine can be used
 as a DNS server. SkyDNS is configured to handle the `webapp.dev` domain by
 itself then use Google's DNS.
 
-In order to allow our host to enjoy the DNS server of the cluster, I prefix my
-`/etc/resolv.conf` file with those lines:
+Then I can `dig`, from the host, for the services I want using Skydns:
 
-    nameserver 172.17.8.101
-    nameserver 172.17.8.102
-
-Then I can `dig`, from the host, for the services I want:
-
-    $ dig redis.webapp.dev
+    $ dig @172.17.8.101 redis.webapp.dev
 
     > ; <<>> DiG 9.9.5-3ubuntu0.2-Ubuntu <<>> redis.webapp.dev
       ;; global options: +cmd
@@ -158,7 +156,7 @@ Then I can `dig`, from the host, for the services I want:
       ;redis.webapp.dev.              IN      A
 
       ;; ANSWER SECTION:
-      redis.webapp.dev.       3600    IN      A       172.17.8.102
+      redis.webapp.dev.       3600    IN      A       172.17.8.103
 
       ;; Query time: 2 msec
       ;; SERVER: 172.17.8.101#53(172.17.8.101)
@@ -169,16 +167,14 @@ We can see that the DNS used is SkyDNS from `172.17.8.101`. The format of the
 SkyDNS host given a docker's container is:
 
     <service's ID>.<container's name>.<skydns's domain>
-    core-02       .redis             .webapp.dev
+    redis-1       .redis             .webapp.dev
 
 The service's ID is given via the `SERVICE_ID` environment variable of the
 container. The service's ID part is optional: it is possible to call either
-`redis.webapp.dev` or `core-02.redis.webapp.dev`.
+`redis.webapp.dev` or `redis-1.redis.webapp.dev`.
 
-The service's ID is the hostname in the examples, see the services file for
-more information.
-
-Now you can do: `redis-cli -h redis.webapp.dev`.
+The service's ID is the container's name followed by the instance name in the
+examples, see the services file for more information.
 
 ## Preparing custom containers
 
@@ -199,7 +195,7 @@ docker installed:
 
     $ vagrant ssh core-01
     ~ cd /code/webapp
-    ~ sudo docker build -t nicoolas25/webapp ./Dockerfile
+    ~ sudo docker build -t nicoolas25/webapp .
 
 This command could take a while (depending on your connection). It'll build the
 image described in the Dockerfile as `nicoolas25/webapp`. Here is the content
@@ -223,10 +219,18 @@ After that you can ensure that the image is available with:
 If you update your Dockerfile, you will need to repeat those steps to update the
 docker image.
 
+### Share your image
+
+If you want to run your webapp on a different machine, you'll need to redo make
+the image available to docker one way or another. Using a image repository like
+[quay.io][quay].
+
+**Work in progress**
+
 ### Create a service from that image
 
 Now that we've got an image, we have to create a fleet service to manage that
-service. There is an example of such a service in `./services/webapp.service`:
+service. There is an example of such a service in `./services/webapp@.service`:
 
     [Unit]
     Description=A web application example
@@ -235,18 +239,22 @@ service. There is an example of such a service in `./services/webapp.service`:
 
     [Service]
     ExecStartPre=-/usr/bin/docker rm webapp
-    ExecStart=/usr/bin/docker run --rm --name webapp -p 3000:3000 -v /code/webapp:/app nicoolas25/webapp
+    ExecStart=/usr/bin/docker run --rm --name webapp -p 3000:3000 -v /code/webapp:/app -e SERVICE_NAME=app -e SERVICE_ID=%i quay.io/nicoolas25/rack-webapp:latest
     ExecStop=/usr/bin/docker stop webapp
+
+    [X-Fleet]
+    X-Conflicts=webapp@*.service
 
 In this example, the `/code/webapp` is mounted in the container as `/app` in
 order to share the application files.
 
 Now you can, from the host, load and start the webapp service:
 
-    $ fleetctl load services/webapp.service 
-    > Unit webapp.service loaded on d33fcb2c.../172.17.8.101
-    $ fleetctl start webapp.service
-    > Unit webapp.service launched on d33fcb2c.../172.17.8.101
+    $ fleetctl submit services/webapp@test.service
+    $ fleetctl start webapp@test.service
+    > Unit webapp@test.service launched on 4509883a.../172.17.8.101
+
+See that we used another instance name here: `test`.
 
 Once the service is started, you can access it from your host at:
 `http://172.17.8.101:3000/`.
@@ -268,6 +276,7 @@ service on a cluster.
 [fleet]: https://github.com/coreos/fleet
 [fleet-client]: https://github.com/coreos/fleet/blob/master/Documentation/using-the-client.md
 [fleet-dl]: https://github.com/coreos/fleet/releases
+[quay]: http://quary.io/
 [skydns]: https://github.com/skynetservices/skydns
 [vagrant]: https://www.vagrantup.com/
 [vulcand]: https://vulcand.io/
