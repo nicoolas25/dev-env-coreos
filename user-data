@@ -5,7 +5,7 @@ coreos:
   etcd:
     addr: $public_ipv4:4001
     peer-addr: $public_ipv4:7001
-    discovery: https://discovery.etcd.io/ce13864803d77b7f7f88054b7c71c267
+    discovery: https://discovery.etcd.io/884dbf82bec00feab445920aad436b13
   fleet:
     public-ip: $public_ipv4
   update:
@@ -15,6 +15,19 @@ coreos:
     command: start
   - name: fleet.service
     command: start
+  - name: 00-eth0.network
+    runtime: true
+    content: |
+      [Match]
+      Name=eth0
+
+      [Network]
+      DHCP=yes
+      DNS=8.8.8.8
+      DNS=8.8.4.4
+
+      [DHCP]
+      UseDNS=false
   - name: docker-tcp.socket
     command: start
     enable: true
