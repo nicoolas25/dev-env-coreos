@@ -4,7 +4,7 @@
 
 You'll need to download and install [Vagrant][vagrant] before everything else.
 
-Create a cluster of 3 virtual machines with [CoreOS][coreos] with the following
+Create a cluster of 3 virtual machines with [CoreOS][core-os] with the following
 command:
 
     $ vagrant up
