@@ -176,6 +176,9 @@ container. The service's ID part is optional: it is possible to call either
 The service's ID is the container's name followed by the instance name in the
 examples, see the services file for more information.
 
+You can use those DNS from your host machine by editing your `/etc/resolv.conf`
+file.
+
 ## Preparing custom containers
 
 With the redis example, we were working on a publicly available container. The
@@ -195,11 +198,11 @@ docker installed:
 
     $ vagrant ssh core-01
     ~ cd /code/webapp
-    ~ sudo docker build -t nicoolas25/webapp .
+    ~ sudo docker build -t nicoolas25/rack-webapp .
 
 This command could take a while (depending on your connection). It'll build the
-image described in the Dockerfile as `nicoolas25/webapp`. Here is the content
-of the Dockerfile:
+image described in the Dockerfile as `nicoolas25/rack-webapp`. Here is the
+content of the Dockerfile:
 
     FROM ruby:2.2
     RUN gem install rack
@@ -214,7 +217,8 @@ port 3000.
 
 After that you can ensure that the image is available with:
 
-    ~ docker images | grep webapp
+    ~ docker images | grep rack-webapp
+    > nicoolas25/rack-webapp        latest              f4512accbbbd        About an hour ago   776.4 MB
 
 If you update your Dockerfile, you will need to repeat those steps to update the
 docker image.
@@ -222,10 +226,24 @@ docker image.
 ### Share your image
 
 If you want to run your webapp on a different machine, you'll need to redo make
-the image available to docker one way or another. Using a image repository like
-[quay.io][quay].
+the image available to docker one way or another. We'll be using [quay.io][quay]
+as a docker's images repository.
 
-**Work in progress**
+Create an account on Quay then [create a new repository][quay-new]. Once you
+have its URL, you can do the following:
+
+    ~ docker login quay.io
+    > Username: myusername
+      Password: mypassword
+      Email: myemail@example.com
+      Login Succeeded
+    ~ docker tag f4512accbbbd quay.io/nicoolas25/rack-webapp
+    ~ docker push quay.io/nicoolas25/rack-webapp
+    > The push refers to a repository [quay.io/nicoolas25/rack-webapp] (len: 1)
+      Sending image list
+          Pushing repository quay.io/nicoolas25/rack-webapp (1 tags)
+      ...
+      Pushing tag for rev [f4512accbbbd] on {https://quay.io/v1/repositories/nicoolas25/rack-webapp/tags/latest}
 
 ### Create a service from that image
 
@@ -257,7 +275,8 @@ Now you can, from the host, load and start the webapp service:
 See that we used another instance name here: `test`.
 
 Once the service is started, you can access it from your host at:
-`http://172.17.8.101:3000/`.
+`http://app.webapp.dev:3000/` or `http://172.17.8.101:3000/` depending on
+if you've update your host's network configuration to use SkyDNS or not.
 
 ## Notes
 
@@ -277,6 +296,7 @@ service on a cluster.
 [fleet-client]: https://github.com/coreos/fleet/blob/master/Documentation/using-the-client.md
 [fleet-dl]: https://github.com/coreos/fleet/releases
 [quay]: http://quary.io/
+[quay-new]: https://quay.io/new/
 [skydns]: https://github.com/skynetservices/skydns
 [vagrant]: https://www.vagrantup.com/
 [vulcand]: https://vulcand.io/
