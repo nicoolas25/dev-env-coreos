@@ -62,9 +62,9 @@ the services that are running inside your VM:
 
     $ fleetctl list-machines
     > MACHINE         IP              METADATA
-      390787da...     172.17.8.103    -
-      4509883a...     172.17.8.101    -
-      ea72f90e...     172.17.8.102    -
+      55957c73...     172.17.8.103    purpose=services
+      7741dbbb...     172.17.8.101    purpose=app
+      ffca3354...     172.17.8.102    purpose=services
 
 ### Starting containers with fleetctl
 
@@ -78,27 +78,27 @@ from your fleet:
 
     $ fleetctl list-unit-files
     > UNIT                    HASH    DSTATE          STATE           TARGET
-      redis@1.service         98f768d inactive        inactive        -
+      redis@1.service         1226b31 inactive        inactive        -
       registrator.service     14bd412 launched        -               -
-      skydns.service          f7b1505 loaded          -               -
+      skydns.service          f7b1505 launched        -               -
 
 Now, fleet knows about your redis service. It is possible to start this _instance_
 of our redis service:
 
     $ fleetctl start redis@1.service
-    > Unit redis@1.service launched on 390787da.../172.17.8.103
+    > Unit redis@1.service launched on 55957c73.../172.17.8.103
 
 Now, you can list the units and see the service:
 
     $ fleetctl list-units
     > UNIT                    MACHINE                         ACTIVE  SUB
-      redis@1.service         390787da.../172.17.8.103        active  running
-      registrator.service     390787da.../172.17.8.103        active  running
-      registrator.service     4509883a.../172.17.8.101        active  running
-      registrator.service     ea72f90e.../172.17.8.102        active  running
-      skydns.service          390787da.../172.17.8.103        active  running
-      skydns.service          4509883a.../172.17.8.101        active  running
-      skydns.service          ea72f90e.../172.17.8.102        active  running
+      redis@1.service         55957c73.../172.17.8.103        active  running
+      registrator.service     55957c73.../172.17.8.103        active  running
+      registrator.service     7741dbbb.../172.17.8.101        active  running
+      registrator.service     ffca3354.../172.17.8.102        active  running
+      skydns.service          55957c73.../172.17.8.103        active  running
+      skydns.service          7741dbbb.../172.17.8.101        active  running
+      skydns.service          ffca3354.../172.17.8.102        active  running
 
 There is services that are already running on each machine: `skydns` and
 `registrator`. We'll talk about them later.
@@ -108,16 +108,16 @@ Fleet can tell you the status of a service, and stop them too:
     $ fleetctl status redis@1.service
     > ● redis@1.service - A Redis 2.8 server
          Loaded: loaded (/run/fleet/units/redis@1.service; linked-runtime; vendor preset: disabled)
-            Active: active (running) since Fri 2015-03-27 15:03:54 UTC; 1min 9s ago
-              Process: 1582 ExecStartPre=/usr/bin/docker rm redis (code=exited, status=1/FAILURE)
-       Main PID: 1589 (docker)
+            Active: active (running) since Sun 2015-03-29 15:51:19 UTC; 1min 2s ago
+              Process: 1730 ExecStartPre=/usr/bin/docker rm redis (code=exited, status=1/FAILURE)
+       Main PID: 1737 (docker)
          CGroup: /system.slice/system-redis.slice/redis@1.service
-                    └─1589 /usr/bin/docker run --rm --name redis -p 6379:6379 -e SERVICE_ID=redis-1 redis:2.8
+                    └─1737 /usr/bin/docker run --rm --name redis -p 6379:6379 -e SERVICE_ID=redis-1 redis:2.8
 
 Since it is the first time we're running Redis, docker will start by pulling
 the image from the repository. Your redis service will be available after that
 download. Try using `fleetctl journal -f redis@1.service` see when your server
-is ready.
+is ready. Redis will be ready, you'll see the usual messages of Redis.
 
 ### Accessing your services directly
 
@@ -128,7 +128,7 @@ You can always access services using the virtual machine IP:
 To get the address of the machine hosting the redis.2.8.service you can use
 this command:
 
-    $ fleetctl list-units | grep redis.2.8.service | awk -F'[[:space:]/]' '{ print $3 }'
+    $ fleetctl list-units | grep redis@1.service | awk -F'[[:space:]/]' '{ print $4 }'
     > 172.17.8.103
 
 ### Accessing your services using Skydns
@@ -261,7 +261,8 @@ service. There is an example of such a service in `./services/webapp@.service`:
     ExecStop=/usr/bin/docker stop webapp
 
     [X-Fleet]
-    X-Conflicts=webapp@*.service
+    MachineMetadata=purpose=app
+    Conflicts=webapp@*.service
 
 In this example, the `/code/webapp` is mounted in the container as `/app` in
 order to share the application files.
@@ -277,6 +278,28 @@ See that we used another instance name here: `test`.
 Once the service is started, you can access it from your host at:
 `http://app.webapp.dev:3000/` or `http://172.17.8.101:3000/` depending on
 if you've update your host's network configuration to use SkyDNS or not.
+
+## Controlling the target machines
+
+We've set 3 machines and we've lauched redis in one of these machine. Fleet is
+managing your services and hide the cluster from you. To manage where thing
+should and should not run, there is a `X-Fleet` section in the service file we
+use. Take for instance the `redis@.service`:
+
+    [X-Fleet]
+    MachineMetadata=purpose=services
+    Conflicts=redis@*.service
+
+This is telling Fleet to put this service only on machines that have this
+metadata: `purpose=services`. It is also telling Fleet to not run this service
+on another machine that is already running it.
+
+This kind of control is useful to have a coherent repartition of the services
+over the cluster. If you setup a backup server for a given service, you should
+avoid to put it on the same physical machine, or even in the same datacenter.
+
+You can have more informations about the [fleet unit files][fleet-unit] on the
+official website.
 
 ## Notes
 
@@ -295,9 +318,9 @@ service on a cluster.
 [fleet]: https://github.com/coreos/fleet
 [fleet-client]: https://github.com/coreos/fleet/blob/master/Documentation/using-the-client.md
 [fleet-dl]: https://github.com/coreos/fleet/releases
+[fleet-unit]: https://coreos.com/docs/launching-containers/launching/fleet-unit-files/
 [quay]: http://quary.io/
 [quay-new]: https://quay.io/new/
 [skydns]: https://github.com/skynetservices/skydns
 [vagrant]: https://www.vagrantup.com/
 [vulcand]: https://vulcand.io/
-

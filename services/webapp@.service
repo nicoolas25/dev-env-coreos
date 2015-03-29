@@ -9,4 +9,5 @@ ExecStart=/usr/bin/docker run --rm --name webapp -p 3000:3000 -v /code/webapp:/a
 ExecStop=/usr/bin/docker stop webapp
 
 [X-Fleet]
-X-Conflicts=webapp@*.service
+MachineMetadata=purpose=app
+Conflicts=webapp@*.service

@@ -1,22 +1,3 @@
-$new_discovery_url='https://discovery.etcd.io/new'
-
-# To automatically replace the discovery token on 'vagrant up', uncomment
-# the lines below:
-
-if File.exists?('user-data') && ARGV[0].eql?('up')
-  require 'open-uri'
-  require 'yaml'
-
-  token = open($new_discovery_url).read
-
-  data = YAML.load(IO.readlines('user-data')[1..-1].join)
-  data['coreos']['etcd']['discovery'] = token
-
-  yaml = YAML.dump(data)
-  File.open('user-data', 'w') { |file| file.write("#cloud-config\n\n#{yaml}") }
-end
-
-#
 # coreos-vagrant is configured through a series of configuration
 # options (global ruby variables) which are detailed below. To modify
 # these options, first copy this file to "config.rb". Then simply
@@ -29,10 +10,17 @@ $num_instances=3
 # Change basename of the VM
 # The default value is "core", which results in VMs named starting with
 # "core-01" through to "core-${num_instances}".
-#$instance_name_prefix="core"
+$instance_name_prefix="core"
+
+# Change the metadata by machine name
+$metadata = {
+  "core-01" => "purpose=app",
+  "core-02" => "purpose=services",
+  "core-03" => "purpose=services",
+}
 
 # Official CoreOS channel from which updates should be downloaded
-#$update_channel='alpha'
+#$update_channel="alpha"
 
 # Log the serial consoles of CoreOS VMs to log/
 # Enable by setting value to true, disable with false
@@ -44,7 +32,7 @@ $num_instances=3
 # Set to the TCP port you want exposed on the *host* machine, default is 2375
 # If 2375 is used, Vagrant will auto-increment (e.g. in the case of $num_instances > 1)
 # You can then use the docker tool locally by setting the following env var:
-#   export DOCKER_HOST='tcp://127.0.0.1:2375'
+#   export DOCKER_HOST="tcp://127.0.0.1:2375"
 #$expose_docker_tcp=2375
 
 # Enable NFS sharing of your home directory ($HOME) to CoreOS
@@ -53,16 +41,45 @@ $num_instances=3
 #$share_home=false
 
 # Customize VMs
-#$vm_gui = false
+$vm_gui = false
 $vm_memory = 1024
 $vm_cpus = 1
 
 # Share additional folders to the CoreOS VMs
 # For example,
-# $shared_folders = {'/path/on/host' => '/path/on/guest', '/home/foo/app' => '/app'}
+# $shared_folders = {"/path/on/host" => "/path/on/guest", "/home/foo/app" => "/app"}
 # or, to map host folders to guest folders of the same name,
-# $shared_folders = Hash[*['/home/foo/app1', '/home/foo/app2'].map{|d| [d, d]}.flatten]
-$shared_folders = { './code' => '/code' }
+# $shared_folders = Hash[*["/home/foo/app1", "/home/foo/app2"].map{|d| [d, d]}.flatten]
+$shared_folders = { "./code" => "/code" }
 
 # Enable port forwarding from guest(s) to host machine, syntax is: { 80 => 8080 }, auto correction is enabled by default.
 #$forwarded_ports = {}
+
+$new_discovery_url="https://discovery.etcd.io/new"
+
+# When doing a `vagrant up`:
+if File.exists?("user-data") && ARGV[0].eql?("up")
+  require "open-uri"
+  require "yaml"
+
+  # Replace the discovery token by a new one
+  token = open($new_discovery_url).read
+  data = YAML.load(IO.readlines("user-data")[1..-1].join)
+  data["coreos"]["etcd"]["discovery"] = token
+
+  # Write the user-data file back for each machine
+  (1..$num_instances).each do |i|
+    machine_name = "%s-%02d" % [$instance_name_prefix, i]
+
+    # Customize the metadata by machine
+    if $metadata.has_key?(machine_name)
+      data["coreos"]["fleet"]["metadata"] = $metadata[machine_name]
+    else
+      data["coreos"]["fleet"].delete("metadata")
+    end
+
+    yaml = YAML.dump(data)
+    filename = "user-data.#{machine_name}"
+    File.open(filename, "w") { |f| f.write("#cloud-config\n\n#{yaml}") }
+  end
+end

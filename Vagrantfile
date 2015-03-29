@@ -124,8 +124,9 @@ Vagrant.configure("2") do |config|
         config.vm.synced_folder ENV['HOME'], ENV['HOME'], id: "home", :nfs => true, :mount_options => ['nolock,vers=3,udp']
       end
 
-      if File.exist?(CLOUD_CONFIG_PATH)
-        config.vm.provision :file, :source => "#{CLOUD_CONFIG_PATH}", :destination => "/tmp/vagrantfile-user-data"
+      config_filename = "#{CLOUD_CONFIG_PATH}.#{vm_name}"
+      if File.exist?(config_filename)
+        config.vm.provision :file, :source => "#{config_filename}", :destination => "/tmp/vagrantfile-user-data"
         config.vm.provision :shell, :inline => "mv /tmp/vagrantfile-user-data /var/lib/coreos-vagrant/", :privileged => true
       end
 
